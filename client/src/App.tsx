@@ -6,6 +6,10 @@ import { BranchesPage } from './features/branches'
 import { UsersPage } from './features/users'
 import { CategoriesPage } from './features/categories'
 import { ProductsPage } from './features/products'
+import { StockPage, StockMovementsPage } from './features/stock'
+import { WarehousePage } from './features/warehouse'
+import { POSPage } from './features/pos'
+import { TransactionsPage } from './features/transactions'
 import { AppLayout } from './components/layout/AppLayout'
 import { PageHeader } from './components/layout/PageHeader'
 
@@ -45,12 +49,15 @@ export default function App() {
         <Route path="/categories" element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
         <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
 
-        {/* Placeholder — Phase 3+ */}
-        <Route path="/pos" element={<ProtectedRoute><PlaceholderPage title="Kasir" description="Modul kasir — coming soon" /></ProtectedRoute>} />
-        <Route path="/stock" element={<ProtectedRoute><PlaceholderPage title="Stok" description="Manajemen stok per cabang" /></ProtectedRoute>} />
-        <Route path="/warehouse" element={<ProtectedRoute><PlaceholderPage title="Gudang" description="Monitoring stok gudang" /></ProtectedRoute>} />
-        <Route path="/restock" element={<ProtectedRoute><PlaceholderPage title="Restok" description="Permintaan restok cabang" /></ProtectedRoute>} />
-        <Route path="/transactions" element={<ProtectedRoute><PlaceholderPage title="Transaksi" description="Riwayat transaksi" /></ProtectedRoute>} />
+        {/* Phase 3 — Stock & Warehouse */}
+        <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
+        <Route path="/stock/movements" element={<ProtectedRoute><StockMovementsPage /></ProtectedRoute>} />
+        <Route path="/warehouse" element={<ProtectedRoute><WarehousePage /></ProtectedRoute>} />
+        <Route path="/restock" element={<ProtectedRoute><WarehousePage /></ProtectedRoute>} />
+
+        {/* Phase 4 — POS */}
+        <Route path="/pos" element={<ProtectedRoute><POSPage /></ProtectedRoute>} />
+        <Route path="/transactions" element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} />
         <Route path="/customers" element={<ProtectedRoute><PlaceholderPage title="Pelanggan" description="Data pelanggan" /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><PlaceholderPage title="Laporan" description="Laporan penjualan dan profit" /></ProtectedRoute>} />
 
