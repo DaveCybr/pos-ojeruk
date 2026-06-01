@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Build
+dist/
+client/dist/
+
+# Env
+.env
+client/.env
+server/.env
+
+# Prisma
+server/prisma/migrations/
+
+# Misc
+.DS_Store
+*.log

@@ -1,0 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: 24.6 95% 53.1%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 24.6 95% 53.1%;
+    --background: 60 9% 98%;
+    --foreground: 20 14.3% 14.1%;
+    --muted: 60 4.8% 95.9%;
+    --muted-foreground: 25 5.3% 44.7%;
+    --border: 20 5.9% 90%;
+    --input: 20 5.9% 90%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14.3% 14.1%;
+    --radius: 0.5rem;
+  }
+  * { @apply border-stone-200; }
+  body { @apply bg-stone-50 text-stone-800 font-sans antialiased; }
+}
