@@ -7,6 +7,7 @@ interface User {
   email: string
   role: 'ADMIN' | 'WAREHOUSE' | 'CASHIER'
   branchId: string | null
+  branch?: { id: string; name: string; city: string } | null
 }
 
 interface AuthStore {

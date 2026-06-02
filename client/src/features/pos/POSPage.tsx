@@ -60,8 +60,8 @@ export function POSPage() {
     staleTime: Infinity,
   })
   const activeBranchName = isAdmin
-    ? branchesData?.find(b => b.id === activeBranchId)?.name ?? activeBranchId
-    : (user as { branchName?: string })?.branchName ?? activeBranchId
+    ? (branchesData?.find(b => b.id === activeBranchId)?.name ?? activeBranchId)
+    : (user?.branch?.name ?? activeBranchId)
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 

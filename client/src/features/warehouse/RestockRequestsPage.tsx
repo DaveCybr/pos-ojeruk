@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Plus, PackagePlus, Check, X, Loader2 } from 'lucide-react'
+import { PackagePlus, Check, X, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -37,7 +37,7 @@ export function RestockRequestsPage({ embedded = false }: Props) {
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'WAREHOUSE'
 
   const [modalOpen, setModalOpen]     = useState(false)
-  const [prefillProduct, setPrefill]  = useState<string | undefined>()
+  const [prefillProduct]              = useState<string | undefined>()
   const [statusFilter, setStatus]     = useState<RestockStatus | ''>('')
   const [branchFilter, setBranch]     = useState('')
   const [page, setPage]               = useState(1)
@@ -182,13 +182,6 @@ export function RestockRequestsPage({ embedded = false }: Props) {
     </div>
   )
 
-  const addButton = (
-    <button onClick={() => { setPrefill(undefined); setModalOpen(true) }}
-      className="flex items-center gap-2 px-4 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-all">
-      <Plus size={16} /> Ajukan Restok
-    </button>
-  )
-
   const tableContent = (
     <>
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
@@ -225,7 +218,6 @@ export function RestockRequestsPage({ embedded = false }: Props) {
 
   if (embedded) return (
     <div className="space-y-4">
-      <div className="flex justify-end">{!isAdmin && addButton}</div>
       {tableContent}
     </div>
   )

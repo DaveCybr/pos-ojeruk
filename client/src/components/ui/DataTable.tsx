@@ -75,17 +75,19 @@ export function DataTable<TData>({
     )
   }
 
-  // No data at all → emptyState
-  if (!data.length && emptyState) return <>{emptyState}</>
-
   const totalFiltered = table.getFilteredRowModel().rows.length
   const { pageIndex, pageSize } = table.getState().pagination
   const startRow = totalFiltered === 0 ? 0 : pageIndex * pageSize + 1
   const endRow = Math.min(pageIndex * pageSize + pageSize, totalFiltered)
 
+  // No data + no toolbar → render standalone emptyState (no table needed)
+  if (!data.length && !enableSearch && !toolbar && emptyState) {
+    return <>{emptyState}</>
+  }
+
   return (
     <div>
-      {/* Toolbar row */}
+      {/* Toolbar — always rendered when present, even when data is empty */}
       {(enableSearch || toolbar) && (
         <div className="px-4 py-3 border-b border-stone-100 flex items-center gap-3 flex-wrap">
           {enableSearch && (
@@ -104,71 +106,76 @@ export function DataTable<TData>({
         </div>
       )}
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-stone-50 border-b border-stone-200">
-            {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id}>
-                {hg.headers.map((h) => (
-                  <th
-                    key={h.id}
-                    className="text-left text-sm font-semibold text-stone-600 px-4 py-3 whitespace-nowrap"
-                  >
-                    {h.isPlaceholder ? null : h.column.getCanSort() ? (
-                      <button
-                        onClick={h.column.getToggleSortingHandler()}
-                        className="flex items-center gap-1.5 hover:text-stone-900 transition-colors group"
-                      >
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        <span className="text-stone-300 group-hover:text-stone-500 transition-colors">
-                          {h.column.getIsSorted() === 'asc' ? (
-                            <ArrowUp size={12} className="text-orange-500" />
-                          ) : h.column.getIsSorted() === 'desc' ? (
-                            <ArrowDown size={12} className="text-orange-500" />
-                          ) : (
-                            <ArrowUpDown size={12} />
-                          )}
-                        </span>
-                      </button>
-                    ) : (
-                      flexRender(h.column.columnDef.header, h.getContext())
-                    )}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-4 py-12 text-center text-sm text-stone-400"
-                >
-                  Tidak ada data yang cocok dengan pencarian
-                </td>
-              </tr>
-            ) : (
-              table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-b border-stone-100 hover:bg-stone-50/80 transition-colors last:border-0"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3 text-sm text-stone-700">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
+      {/* Empty state below toolbar when data array is empty */}
+      {data.length === 0 && emptyState ? (
+        emptyState
+      ) : (
+        /* Table */
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-stone-50 border-b border-stone-200">
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id}>
+                  {hg.headers.map((h) => (
+                    <th
+                      key={h.id}
+                      className="text-left text-sm font-semibold text-stone-600 px-4 py-3 whitespace-nowrap"
+                    >
+                      {h.isPlaceholder ? null : h.column.getCanSort() ? (
+                        <button
+                          onClick={h.column.getToggleSortingHandler()}
+                          className="flex items-center gap-1.5 hover:text-stone-900 transition-colors group"
+                        >
+                          {flexRender(h.column.columnDef.header, h.getContext())}
+                          <span className="text-stone-300 group-hover:text-stone-500 transition-colors">
+                            {h.column.getIsSorted() === 'asc' ? (
+                              <ArrowUp size={12} className="text-orange-500" />
+                            ) : h.column.getIsSorted() === 'desc' ? (
+                              <ArrowDown size={12} className="text-orange-500" />
+                            ) : (
+                              <ArrowUpDown size={12} />
+                            )}
+                          </span>
+                        </button>
+                      ) : (
+                        flexRender(h.column.columnDef.header, h.getContext())
+                      )}
+                    </th>
                   ))}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={columns.length}
+                    className="px-4 py-12 text-center text-sm text-stone-400"
+                  >
+                    Tidak ada data yang cocok dengan pencarian
+                  </td>
+                </tr>
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-stone-100 hover:bg-stone-50/80 transition-colors last:border-0"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-4 py-3 text-sm text-stone-700">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {/* Pagination */}
-      {enablePagination && (
+      {/* Pagination — hide when data is empty */}
+      {enablePagination && data.length > 0 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-stone-100 flex-wrap gap-3">
           <div className="flex items-center gap-2 text-sm text-stone-500">
             <span>

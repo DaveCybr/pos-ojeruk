@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Loader2, Clock } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Loader2, Clock, ArrowLeft } from 'lucide-react'
 import { CurrencyInput } from '../../components/ui/CurrencyInput'
 import { shiftApi } from './shiftApi'
 import type { ActiveShift } from './shiftApi'
@@ -13,6 +14,7 @@ interface Props {
 
 export function ShiftOpenModal({ branchId, branchName, onOpened }: Props) {
   const [openingCash, setOpeningCash] = useState(0)
+  const navigate = useNavigate()
 
   const mutation = useMutation({
     mutationFn: () => shiftApi.open(branchId, openingCash).then(r => r.data.data),
@@ -66,6 +68,13 @@ export function ShiftOpenModal({ branchId, branchName, onOpened }: Props) {
             {(mutation.error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal membuka shift'}
           </p>
         )}
+
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="w-full flex items-center justify-center gap-1.5 mt-3 text-sm text-stone-400 hover:text-stone-600 transition-colors"
+        >
+          <ArrowLeft size={14} /> Kembali ke Dashboard
+        </button>
       </div>
     </div>
   )

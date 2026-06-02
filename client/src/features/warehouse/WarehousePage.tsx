@@ -38,19 +38,21 @@ export function WarehousePage() {
       />
 
       <div className="p-6 md:p-8">
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-stone-100 rounded-xl p-1 w-fit">
-          {tabs.map(t => (
-            <button key={t.value} onClick={() => setTab(t.value)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                tab === t.value
-                  ? 'bg-white text-stone-900 shadow-sm'
-                  : 'text-stone-500 hover:text-stone-700'
-              }`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {/* Tab bar — hanya tampil kalau ada lebih dari 1 tab */}
+        {tabs.length > 1 && (
+          <div className="flex gap-1 mb-6 bg-stone-100 rounded-xl p-1 w-fit">
+            {tabs.map(t => (
+              <button key={t.value} onClick={() => setTab(t.value)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  tab === t.value
+                    ? 'bg-white text-stone-900 shadow-sm'
+                    : 'text-stone-500 hover:text-stone-700'
+                }`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {tab === 'restock' && <RestockRequestsPage embedded />}
         {tab === 'stock' && !isCashier && <StockPage noLayout />}
