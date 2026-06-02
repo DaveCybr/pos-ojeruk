@@ -21,7 +21,7 @@ const navItems: NavItem[] = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMIN', 'WAREHOUSE', 'CASHIER'] },
   { to: '/pos', icon: ShoppingCart, label: 'Kasir', roles: ['ADMIN', 'CASHIER'], section: 'Operasional' },
   { to: '/transactions', icon: Receipt, label: 'Transaksi', roles: ['ADMIN', 'CASHIER'] },
-  { to: '/customers', icon: Users, label: 'Pelanggan', roles: ['ADMIN', 'CASHIER'] },
+  { to: '/customers', icon: Users, label: 'Pelanggan', roles: ['ADMIN', 'WAREHOUSE', 'CASHIER'] },
   { to: '/stock', icon: Boxes, label: 'Stok', roles: ['ADMIN', 'WAREHOUSE', 'CASHIER'], section: 'Inventori' },
   { to: '/warehouse', icon: Warehouse, label: 'Gudang', roles: ['ADMIN', 'WAREHOUSE'] },
   { to: '/restock', icon: PackagePlus, label: 'Restok', roles: ['ADMIN', 'WAREHOUSE', 'CASHIER'] },
@@ -29,7 +29,7 @@ const navItems: NavItem[] = [
   { to: '/categories', icon: Tag, label: 'Kategori', roles: ['ADMIN'] },
   { to: '/branches', icon: Store, label: 'Cabang', roles: ['ADMIN'] },
   { to: '/users', icon: UserCircle, label: 'Pengguna', roles: ['ADMIN'] },
-  { to: '/reports', icon: BarChart3, label: 'Laporan', roles: ['ADMIN'], section: 'Analitik' },
+  { to: '/reports', icon: BarChart3, label: 'Laporan', roles: ['ADMIN', 'WAREHOUSE'], section: 'Analitik' },
 ]
 
 export function Sidebar() {

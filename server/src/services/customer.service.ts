@@ -18,9 +18,11 @@ export const customerBodySchema = z.object({
 })
 
 const txInclude = {
-  branch:  { select: { id: true, name: true } },
+  branch:  { select: { id: true, name: true, city: true } },
   cashier: { select: { id: true, name: true } },
-  items:   { select: { id: true } },
+  items: {
+    include: { product: { select: { id: true, name: true, barcode: true, unit: true } } },
+  },
 } as const
 
 export async function listCustomers(query: z.infer<typeof listCustomersSchema>) {
