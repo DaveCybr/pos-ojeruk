@@ -1,33 +1,31 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './stores/auth.store'
-import { LoginPage } from './features/auth'
-import { BranchesPage } from './features/branches'
-import { UsersPage } from './features/users'
-import { CategoriesPage } from './features/categories'
-import { ProductsPage } from './features/products'
-import { StockPage, StockMovementsPage } from './features/stock'
-import { WarehousePage } from './features/warehouse'
-import { POSPage } from './features/pos'
-import { TransactionsPage } from './features/transactions'
-import { AppLayout } from './components/layout/AppLayout'
-import { PageHeader } from './components/layout/PageHeader'
+import { PageLoader } from './components/ui/PageLoader'
+import type { Role } from './types'
 
-function PlaceholderPage({ title, description }: { title: string; description?: string }) {
-  return (
-    <AppLayout>
-      <PageHeader title={title} description={description} />
-      <div className="flex flex-col items-center justify-center h-64 p-8">
-        <div className="text-5xl mb-4">🍊</div>
-        <p className="text-stone-500 text-sm">Halaman ini sedang dalam pengembangan</p>
-      </div>
-    </AppLayout>
-  )
-}
+// Lazy-loaded pages — each chunk only loads when needed
+const LoginPage          = lazy(() => import('./features/auth').then(m => ({ default: m.LoginPage })))
+const DashboardPage      = lazy(() => import('./features/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
+const BranchesPage       = lazy(() => import('./features/branches').then(m => ({ default: m.BranchesPage })))
+const UsersPage          = lazy(() => import('./features/users').then(m => ({ default: m.UsersPage })))
+const CategoriesPage     = lazy(() => import('./features/categories').then(m => ({ default: m.CategoriesPage })))
+const ProductsPage       = lazy(() => import('./features/products').then(m => ({ default: m.ProductsPage })))
+const StockPage          = lazy(() => import('./features/stock').then(m => ({ default: m.StockPage })))
+const StockMovementsPage = lazy(() => import('./features/stock').then(m => ({ default: m.StockMovementsPage })))
+const WarehousePage      = lazy(() => import('./features/warehouse').then(m => ({ default: m.WarehousePage })))
+const POSPage            = lazy(() => import('./features/pos').then(m => ({ default: m.POSPage })))
+const TransactionsPage   = lazy(() => import('./features/transactions/TransactionsPage').then(m => ({ default: m.TransactionsPage })))
+const CustomersPage      = lazy(() => import('./features/customers/CustomersPage').then(m => ({ default: m.CustomersPage })))
+const ReportsPage        = lazy(() => import('./features/reports/ReportsPage').then(m => ({ default: m.ReportsPage })))
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore()
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
+
+function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: Role[] }) {
+  const { isAuthenticated, user } = useAuthStore()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (roles && user?.role && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />
+  return <>{children}</>
 }
 
 export default function App() {
@@ -35,35 +33,41 @@ export default function App() {
 
   return (
     <>
-      <Routes>
-        {/* Public */}
-        <Route
-          path="/login"
-          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
-        />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public */}
+          <Route
+            path="/login"
+            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+          />
 
-        {/* Protected — Phase 2 Master Data */}
-        <Route path="/dashboard" element={<ProtectedRoute><PlaceholderPage title="Dashboard" description="Ringkasan data penjualan dan stok" /></ProtectedRoute>} />
-        <Route path="/branches" element={<ProtectedRoute><BranchesPage /></ProtectedRoute>} />
-        <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
-        <Route path="/categories" element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
-        <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
+          {/* Dashboard */}
+          <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-        {/* Phase 3 — Stock & Warehouse */}
-        <Route path="/stock" element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
-        <Route path="/stock/movements" element={<ProtectedRoute><StockMovementsPage /></ProtectedRoute>} />
-        <Route path="/warehouse" element={<ProtectedRoute><WarehousePage /></ProtectedRoute>} />
-        <Route path="/restock" element={<ProtectedRoute><WarehousePage /></ProtectedRoute>} />
+          {/* Master Data */}
+          <Route path="/branches"   element={<ProtectedRoute roles={['ADMIN']}><BranchesPage /></ProtectedRoute>} />
+          <Route path="/users"      element={<ProtectedRoute roles={['ADMIN']}><UsersPage /></ProtectedRoute>} />
+          <Route path="/categories" element={<ProtectedRoute roles={['ADMIN']}><CategoriesPage /></ProtectedRoute>} />
+          <Route path="/products"   element={<ProtectedRoute roles={['ADMIN', 'CASHIER']}><ProductsPage /></ProtectedRoute>} />
 
-        {/* Phase 4 — POS */}
-        <Route path="/pos" element={<ProtectedRoute><POSPage /></ProtectedRoute>} />
-        <Route path="/transactions" element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} />
-        <Route path="/customers" element={<ProtectedRoute><PlaceholderPage title="Pelanggan" description="Data pelanggan" /></ProtectedRoute>} />
-        <Route path="/reports" element={<ProtectedRoute><PlaceholderPage title="Laporan" description="Laporan penjualan dan profit" /></ProtectedRoute>} />
+          {/* Stock & Warehouse */}
+          <Route path="/stock"           element={<ProtectedRoute><StockPage /></ProtectedRoute>} />
+          <Route path="/stock/movements" element={<ProtectedRoute><StockMovementsPage /></ProtectedRoute>} />
+          <Route path="/warehouse"       element={<ProtectedRoute roles={['ADMIN', 'WAREHOUSE']}><WarehousePage /></ProtectedRoute>} />
+          <Route path="/restock"         element={<ProtectedRoute><WarehousePage /></ProtectedRoute>} />
 
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+          {/* POS */}
+          <Route path="/pos"          element={<ProtectedRoute><POSPage /></ProtectedRoute>} />
+          <Route path="/transactions" element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} />
+          <Route path="/customers"    element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+
+          {/* Reports */}
+          <Route path="/reports" element={<ProtectedRoute roles={['ADMIN', 'WAREHOUSE']}><ReportsPage /></ProtectedRoute>} />
+
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Suspense>
 
       <Toaster
         position="bottom-right"

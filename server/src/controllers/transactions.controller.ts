@@ -16,7 +16,10 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
 export const create = asyncHandler(async (req: Request, res: Response) => {
   const auth = req as AuthRequest
   const body = service.createTransactionSchema.parse(req.body)
-  const { transaction, stockUpdates } = await service.createTransaction(body, auth.user!.id)
+  const { transaction, stockUpdates } = await service.createTransaction(body, auth.user!.id, {
+    role: auth.user!.role,
+    branchId: auth.user!.branchId,
+  })
 
   // Emit transaction event
   emitToAll(body.branchId, 'transaction:new', { transaction, branch_id: body.branchId })

@@ -3,8 +3,8 @@ import { prisma } from '../lib/prisma'
 import { NotFoundError, ConflictError } from '../utils/errors'
 
 export const createProductSchema = z.object({
-  name: z.string().min(1, 'Nama produk wajib diisi'),
-  barcode: z.string().min(1, 'Barcode wajib diisi'),
+  name: z.string().min(1, 'Nama produk wajib diisi').transform(s => s.trim()),
+  barcode: z.string().min(1, 'Barcode wajib diisi').transform(s => s.trim()),
   categoryId: z.string().min(1, 'Kategori wajib dipilih'),
   price: z.coerce.number().positive('Harga harus lebih dari 0'),
   costPrice: z.coerce.number().positive('Harga modal harus lebih dari 0'),
@@ -20,7 +20,7 @@ export const listProductsSchema = z.object({
   categoryId: z.string().optional(),
   isActive: z.enum(['true', 'false']).optional(),
   page: z.coerce.number().positive().optional().default(1),
-  limit: z.coerce.number().positive().max(100).optional().default(20),
+  limit: z.coerce.number().positive().max(500).optional().default(20),
 })
 
 const productInclude = {

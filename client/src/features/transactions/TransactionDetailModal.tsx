@@ -1,5 +1,7 @@
+import { Printer } from 'lucide-react'
 import { Modal } from '../../components/ui/Modal'
 import { formatCurrency, formatDateTime } from '../../lib/utils'
+import { printReceipt } from '../../lib/receipt'
 import type { Transaction } from './types'
 
 interface Props {
@@ -63,6 +65,15 @@ export function TransactionDetailModal({ open, onClose, transaction }: Props) {
             <div className="flex justify-between text-stone-500 text-xs"><span>Kembalian</span><span>{formatCurrency(transaction.changeAmount)}</span></div>
           )}
         </div>
+
+        {/* Print button */}
+        <button
+          onClick={() => printReceipt(transaction)}
+          className="w-full flex items-center justify-center gap-2 h-10 border border-stone-200 rounded-xl
+            text-sm text-stone-600 hover:bg-stone-50 hover:border-stone-300 transition-all"
+        >
+          <Printer size={15} /> Cetak Struk
+        </button>
       </div>
     </Modal>
   )

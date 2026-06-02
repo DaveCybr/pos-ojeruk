@@ -24,7 +24,16 @@ const limiter = rateLimit({
   max: 200,
   message: { success: false, message: 'Terlalu banyak request, coba lagi nanti' },
 })
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Terlalu banyak percobaan login, coba lagi dalam 15 menit' },
+})
+
 app.use('/api/v1', limiter)
+app.use('/api/v1/auth/login',   authLimiter)
+app.use('/api/v1/auth/refresh', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, message: { success: false, message: 'Terlalu banyak request, coba lagi nanti' } }))
 app.use('/api/v1', router)
 
 app.use(errorHandler)

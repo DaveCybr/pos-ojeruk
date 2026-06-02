@@ -12,9 +12,6 @@ client/dist/
 client/.env
 server/.env
 
-# Prisma
-server/prisma/migrations/
-
 # Misc
 .DS_Store
 *.log

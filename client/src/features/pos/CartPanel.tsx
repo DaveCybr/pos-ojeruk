@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Trash2, Minus, Plus, X, ShoppingCart } from 'lucide-react'
 import { useCartStore } from '../../stores/cart.store'
 import { formatCurrency } from '../../lib/utils'
+import { CurrencyInput } from '../../components/ui/CurrencyInput'
+import { CustomerSection } from './CustomerSection'
 
 interface CartPanelProps {
   onCheckout: () => void
@@ -11,22 +13,21 @@ interface CartPanelProps {
 export function CartPanel({ onCheckout, onHold }: CartPanelProps) {
   const { items, discount, addItem, removeItem, updateQty, setDiscount, clearCart, subtotal, total } = useCartStore()
   const [discountMode, setDiscountMode] = useState<'rp' | 'pct'>('rp')
-  const [discountInput, setDiscountInput] = useState('')
+  const [discountInput, setDiscountInput] = useState(0)
 
   const sub = subtotal()
   const tot = total()
   const isEmpty = items.length === 0
 
-  const handleDiscountChange = (val: string) => {
-    setDiscountInput(val)
-    const num = parseFloat(val) || 0
+  const handleDiscountChange = (num: number) => {
+    setDiscountInput(num)
     setDiscount(discountMode === 'rp' ? num : (num / 100) * sub)
   }
 
   const handleModeToggle = () => {
     const next = discountMode === 'rp' ? 'pct' : 'rp'
     setDiscountMode(next)
-    setDiscountInput('')
+    setDiscountInput(0)
     setDiscount(0)
   }
 
@@ -44,7 +45,7 @@ export function CartPanel({ onCheckout, onHold }: CartPanelProps) {
           )}
         </div>
         {!isEmpty && (
-          <button onClick={() => { clearCart(); setDiscountInput('') }}
+          <button onClick={() => { clearCart(); setDiscountInput(0) }}
             className="p-1.5 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 transition-all">
             <Trash2 size={15} />
           </button>
@@ -96,22 +97,37 @@ export function CartPanel({ onCheckout, onHold }: CartPanelProps) {
       {/* Discount + Summary + Actions */}
       {!isEmpty && (
         <div className="flex-shrink-0 border-t border-stone-100">
+          {/* Customer */}
+          <div className="px-4 pt-3 pb-2">
+            <CustomerSection />
+          </div>
+
           {/* Discount */}
-          <div className="px-4 py-3 space-y-1.5">
+          <div className="px-4 py-2 space-y-1.5">
             <div className="flex items-center gap-2">
               <label className="text-xs font-medium text-stone-500 flex-shrink-0">Diskon</label>
               <button onClick={handleModeToggle}
                 className="text-[11px] font-medium px-2 py-0.5 rounded border border-stone-200 text-stone-500 hover:border-orange-300 hover:text-orange-600 transition-all">
                 {discountMode === 'rp' ? 'Rp' : '%'}
               </button>
-              <input
-                type="number"
-                value={discountInput}
-                onChange={e => handleDiscountChange(e.target.value)}
-                placeholder={discountMode === 'rp' ? '0' : '0 %'}
-                min={0}
-                className="flex-1 h-8 border border-stone-200 rounded-lg px-2 text-sm text-right focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/20"
-              />
+              {discountMode === 'rp' ? (
+                <CurrencyInput
+                  value={discountInput}
+                  onChange={handleDiscountChange}
+                  placeholder="0"
+                  className="flex-1 h-8 border border-stone-200 rounded-lg px-2 text-sm text-right focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/20"
+                />
+              ) : (
+                <input
+                  type="number"
+                  value={discountInput || ''}
+                  onChange={e => handleDiscountChange(parseFloat(e.target.value) || 0)}
+                  placeholder="0 %"
+                  min={0}
+                  max={100}
+                  className="flex-1 h-8 border border-stone-200 rounded-lg px-2 text-sm text-right focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/20"
+                />
+              )}
             </div>
             {discount > 0 && (
               <p className="text-xs text-green-600 text-right">Hemat {formatCurrency(discount)}</p>

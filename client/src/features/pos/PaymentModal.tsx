@@ -3,9 +3,9 @@ import { useMutation } from '@tanstack/react-query'
 import { Loader2, CreditCard } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Modal } from '../../components/ui/Modal'
+import { CurrencyInput } from '../../components/ui/CurrencyInput'
 import { posApi } from './api'
 import { useCartStore } from '../../stores/cart.store'
-import { useAuthStore } from '../../stores/auth.store'
 import { formatCurrency } from '../../lib/utils'
 import type { PaymentMethod } from '../../types'
 import type { Transaction } from './types'
@@ -14,6 +14,7 @@ interface PaymentModalProps {
   open: boolean
   onClose: () => void
   onSuccess: (transaction: Transaction) => void
+  branchId: string
 }
 
 const METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
@@ -22,26 +23,25 @@ const METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
   { value: 'QRIS',     label: 'QRIS',     icon: '📱' },
 ]
 
-export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
-  const { user } = useAuthStore()
-  const { items, discount, total, subtotal, clearCart } = useCartStore()
+export function PaymentModal({ open, onClose, onSuccess, branchId }: PaymentModalProps) {
+  const { items, discount, customer, total, subtotal, clearCart } = useCartStore()
   const [method, setMethod] = useState<PaymentMethod>('CASH')
-  const [paidInput, setPaidInput] = useState('')
+  const [paid, setPaid] = useState(0)
 
   const tot = total()
   const sub = subtotal()
-  const paid = parseFloat(paidInput) || 0
   const change = method === 'CASH' ? Math.max(0, paid - tot) : 0
   const canPay = method !== 'CASH' || paid >= tot
 
   useEffect(() => {
-    if (open) { setMethod('CASH'); setPaidInput('') }
+    if (open) { setMethod('CASH'); setPaid(0) }
   }, [open])
 
   const mutation = useMutation({
     mutationFn: () =>
       posApi.createTransaction({
-        branchId:      user!.branchId!,
+        branchId,
+        customerId:    customer?.id ?? null,
         paymentMethod: method,
         paidAmount:    method === 'CASH' ? paid : tot,
         discount,
@@ -72,6 +72,9 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
           {discount > 0 && (
             <p className="text-xs text-green-600 mt-1">Sudah termasuk diskon {formatCurrency(discount)}</p>
           )}
+          {customer && (
+            <p className="text-xs text-stone-500 mt-1">👤 {customer.name}</p>
+          )}
         </div>
 
         {/* Method */}
@@ -96,23 +99,27 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         {method === 'CASH' && (
           <div className="space-y-2">
             <p className="text-xs font-medium text-stone-500">Uang Diterima</p>
-            <input
-              type="number"
-              value={paidInput}
-              onChange={e => setPaidInput(e.target.value)}
-              placeholder="0"
-              autoFocus
-              className="w-full h-12 border border-stone-300 rounded-xl px-4 text-right text-lg font-semibold
-                focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
-            />
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium text-stone-400 select-none">
+                Rp
+              </span>
+              <CurrencyInput
+                value={paid}
+                onChange={setPaid}
+                placeholder="0"
+                autoFocus
+                className="w-full h-12 border border-stone-300 rounded-xl pl-10 pr-4 text-right text-lg font-semibold
+                  focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+              />
+            </div>
             {/* Quick amounts */}
             <div className="grid grid-cols-4 gap-1.5">
               {quickAmounts.map(a => (
-                <button key={a} onClick={() => setPaidInput(String(a))}
+                <button key={a} onClick={() => setPaid(a)}
                   className={`h-9 rounded-lg text-xs font-medium border transition-all ${
                     paid === a ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-stone-200 text-stone-600 hover:border-orange-300'
                   }`}>
-                  {a === tot ? 'Uang Pas' : formatCurrency(a).replace('Rp ', '')}
+                  {a === tot ? 'Uang Pas' : formatCurrency(a).replace('Rp\xa0', '')}
                 </button>
               ))}
             </div>

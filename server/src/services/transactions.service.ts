@@ -104,8 +104,13 @@ export async function getTransactionsByBranch(branchId: string) {
 export async function createTransaction(
   data: z.infer<typeof createTransactionSchema>,
   userId: string,
+  userContext: { role: string; branchId: string | null },
 ) {
   const { branchId, customerId, paymentMethod, paidAmount, discount, items } = data
+
+  if (userContext.role === 'CASHIER' && branchId !== userContext.branchId) {
+    throw new BadRequestError('Kasir hanya bisa membuat transaksi di cabang sendiri')
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     // Stock check

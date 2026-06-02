@@ -10,13 +10,21 @@ export interface CartItem {
   imageUrl?: string | null
 }
 
+export interface CartCustomer {
+  id: string
+  name: string
+  phone?: string | null
+}
+
 interface CartStore {
   items: CartItem[]
   discount: number
+  customer: CartCustomer | null
   addItem: (product: Omit<CartItem, 'quantity' | 'subtotal'>) => void
   removeItem: (productId: string) => void
   updateQty: (productId: string, qty: number) => void
   setDiscount: (discount: number) => void
+  setCustomer: (customer: CartCustomer | null) => void
   clearCart: () => void
   total: () => number
   subtotal: () => number
@@ -25,6 +33,8 @@ interface CartStore {
 export const useCartStore = create<CartStore>((set, get) => ({
   items: [],
   discount: 0,
+  customer: null,
+
   addItem: (product) => {
     const items = get().items
     const exists = items.find(i => i.productId === product.productId)
@@ -37,15 +47,20 @@ export const useCartStore = create<CartStore>((set, get) => ({
       set({ items: [...items, { ...product, quantity: 1, subtotal: product.price }] })
     }
   },
+
   removeItem: (productId) => set({ items: get().items.filter(i => i.productId !== productId) }),
+
   updateQty: (productId, qty) => {
     if (qty <= 0) { get().removeItem(productId); return }
     set({ items: get().items.map(i => i.productId === productId
       ? { ...i, quantity: qty, subtotal: qty * i.price } : i
     )})
   },
+
   setDiscount: (discount) => set({ discount }),
-  clearCart: () => set({ items: [], discount: 0 }),
+  setCustomer: (customer) => set({ customer }),
+  clearCart: () => set({ items: [], discount: 0, customer: null }),
+
   subtotal: () => get().items.reduce((sum, i) => sum + i.subtotal, 0),
   total: () => Math.max(0, get().subtotal() - get().discount),
 }))
