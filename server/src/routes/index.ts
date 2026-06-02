@@ -10,6 +10,7 @@ import transactionRoutes from './transactions.route'
 import heldTransactionRoutes from './held-transactions.route'
 import reportRoutes from './reports.route'
 import customerRoutes from './customer.route'
+import shiftRoutes from './shift.route'
 
 const router = Router()
 
@@ -24,6 +25,7 @@ router.use('/transactions', transactionRoutes)
 router.use('/held-transactions', heldTransactionRoutes)
 router.use('/reports',   reportRoutes)
 router.use('/customers', customerRoutes)
+router.use('/shifts',    shiftRoutes)
 
 router.get('/health', (_, res) => {
   res.json({ success: true, message: 'POS O-JERUK API is running 🍊', timestamp: new Date() })

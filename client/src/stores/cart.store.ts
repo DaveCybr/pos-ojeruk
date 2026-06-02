@@ -23,6 +23,7 @@ interface CartStore {
   addItem: (product: Omit<CartItem, 'quantity' | 'subtotal'>) => void
   removeItem: (productId: string) => void
   updateQty: (productId: string, qty: number) => void
+  setItemDiscount: (productId: string, discount: number) => void
   setDiscount: (discount: number) => void
   setCustomer: (customer: CartCustomer | null) => void
   clearCart: () => void
@@ -53,7 +54,13 @@ export const useCartStore = create<CartStore>((set, get) => ({
   updateQty: (productId, qty) => {
     if (qty <= 0) { get().removeItem(productId); return }
     set({ items: get().items.map(i => i.productId === productId
-      ? { ...i, quantity: qty, subtotal: qty * i.price } : i
+      ? { ...i, quantity: qty, subtotal: qty * i.price - i.discount } : i
+    )})
+  },
+
+  setItemDiscount: (productId, discount) => {
+    set({ items: get().items.map(i => i.productId === productId
+      ? { ...i, discount, subtotal: i.quantity * i.price - discount } : i
     )})
   },
 

@@ -1,4 +1,5 @@
 import express from 'express'
+import path from 'path'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
@@ -18,6 +19,7 @@ app.use(morgan('dev'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,

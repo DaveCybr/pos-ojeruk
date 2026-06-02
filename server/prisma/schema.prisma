@@ -13,6 +13,11 @@ enum Role {
   CASHIER
 }
 
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
 enum StockMovementType {
   IN
   OUT
@@ -54,6 +59,7 @@ model Branch {
   restockRequests  RestockRequest[]
   heldTransactions HeldTransaction[]
   stockMovements   StockMovement[]
+  shifts           CashierShift[]
 
   @@map("branches")
 }
@@ -73,6 +79,7 @@ model User {
   stockMovements   StockMovement[]
   restockRequests  RestockRequest[]
   heldTransactions HeldTransaction[]
+  shifts           CashierShift[]
 
   @@map("users")
 }
@@ -237,4 +244,28 @@ model HeldTransaction {
   cashier User   @relation(fields: [cashierId], references: [id])
 
   @@map("held_transactions")
+}
+
+model CashierShift {
+  id          String      @id @default(uuid())
+  branchId    String      @map("branch_id")
+  cashierId   String      @map("cashier_id")
+  status      ShiftStatus @default(OPEN)
+  openingCash Decimal     @default(0) @db.Decimal(12, 2) @map("opening_cash")
+  closingCash Decimal?    @db.Decimal(12, 2) @map("closing_cash")
+  notes       String?
+  openedAt    DateTime    @default(now()) @map("opened_at")
+  closedAt    DateTime?   @map("closed_at")
+
+  // Summary fields (computed and stored when shift is closed)
+  totalTransactions Int     @default(0) @map("total_transactions")
+  totalRevenue      Decimal @default(0) @db.Decimal(12, 2) @map("total_revenue")
+  cashRevenue       Decimal @default(0) @db.Decimal(12, 2) @map("cash_revenue")
+
+  branch  Branch @relation(fields: [branchId], references: [id])
+  cashier User   @relation(fields: [cashierId], references: [id])
+
+  @@index([branchId])
+  @@index([cashierId, status])
+  @@map("cashier_shifts")
 }

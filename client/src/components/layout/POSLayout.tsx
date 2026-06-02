@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { LayoutDashboard, ClipboardList, PauseCircle, LogOut, ChevronDown, Check } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, PauseCircle, LogOut, ChevronDown, Check, Clock, StopCircle } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth.store'
 import { authApi } from '../../features/auth/api'
 import { branchApi } from '../../features/branches/api'
@@ -9,22 +9,23 @@ import { useSocket } from '../../hooks/useSocket'
 import { useStockSocket } from '../../hooks/useStockSocket'
 import { useTransactionSocket } from '../../hooks/useTransactionSocket'
 import toast from 'react-hot-toast'
+import type { ActiveShift } from '../../features/pos/shiftApi'
 
 interface POSLayoutProps {
   children: React.ReactNode
   activeBranchId?: string
   onBranchChange?: (id: string) => void
+  activeShift?: ActiveShift | null
+  onCloseShift?: () => void
   onShowHeld?: () => void
   onShowHistory?: () => void
 }
 
-interface Branch {
-  id: string
-  name: string
-  isActive: boolean
-}
+interface Branch { id: string; name: string; isActive: boolean }
 
-export function POSLayout({ children, activeBranchId, onBranchChange, onShowHeld, onShowHistory }: POSLayoutProps) {
+export function POSLayout({
+  children, activeBranchId, onBranchChange, activeShift, onCloseShift, onShowHeld, onShowHistory,
+}: POSLayoutProps) {
   const { user, clearAuth } = useAuthStore()
   const navigate = useNavigate()
   const [time, setTime] = useState(new Date())
@@ -38,15 +39,15 @@ export function POSLayout({ children, activeBranchId, onBranchChange, onShowHeld
 
   const { data: cashierBranch } = useQuery({
     queryKey: ['branches', user?.branchId],
-    queryFn: () => user?.branchId ? branchApi.getById(user.branchId).then(r => r.data.data) : null,
-    enabled: !isAdmin && !!user?.branchId,
+    queryFn:  () => user?.branchId ? branchApi.getById(user.branchId).then(r => r.data.data) : null,
+    enabled:  !isAdmin && !!user?.branchId,
     staleTime: Infinity,
   })
 
   const { data: allBranches } = useQuery<Branch[]>({
     queryKey: ['branches'],
-    queryFn: () => branchApi.list().then(r => r.data.data.filter((b: Branch) => b.isActive)),
-    enabled: isAdmin,
+    queryFn:  () => branchApi.list().then(r => r.data.data.filter((b: Branch) => b.isActive)),
+    enabled:  isAdmin,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -55,7 +56,6 @@ export function POSLayout({ children, activeBranchId, onBranchChange, onShowHeld
     return () => clearInterval(t)
   }, [])
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -80,6 +80,15 @@ export function POSLayout({ children, activeBranchId, onBranchChange, onShowHeld
     ? allBranches?.find(b => b.id === activeBranchId)?.name
     : cashierBranch?.name
 
+  // Shift duration display
+  const shiftDuration = activeShift
+    ? (() => {
+        const diff = Math.floor((Date.now() - new Date(activeShift.openedAt).getTime()) / 60000)
+        const h = Math.floor(diff / 60), m = diff % 60
+        return h > 0 ? `${h}j ${m}m` : `${m}m`
+      })()
+    : null
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-stone-50">
       <header className="bg-white border-b border-stone-200 px-4 py-2 flex items-center gap-4 flex-shrink-0 shadow-sm">
@@ -98,24 +107,15 @@ export function POSLayout({ children, activeBranchId, onBranchChange, onShowHeld
                   <span className="max-w-[160px] truncate">
                     {selectedBranchName ?? '— Pilih cabang —'}
                   </span>
-                  <ChevronDown
-                    size={13}
-                    className={`flex-shrink-0 text-stone-400 transition-transform duration-150 ${dropdownOpen ? 'rotate-180' : ''}`}
-                  />
+                  <ChevronDown size={13} className={`flex-shrink-0 text-stone-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
-
                 {dropdownOpen && (
                   <div className="absolute top-full left-0 mt-2 w-52 bg-white border border-stone-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
                     {allBranches?.map(b => (
-                      <button
-                        key={b.id}
-                        onClick={() => { onBranchChange(b.id); setDropdownOpen(false) }}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition-colors
-                          ${b.id === activeBranchId
-                            ? 'bg-orange-50 text-orange-600 font-medium'
-                            : 'text-stone-700 hover:bg-stone-50'
-                          }`}
-                      >
+                      <button key={b.id} onClick={() => { onBranchChange(b.id); setDropdownOpen(false) }}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition-colors ${
+                          b.id === activeBranchId ? 'bg-orange-50 text-orange-600 font-medium' : 'text-stone-700 hover:bg-stone-50'
+                        }`}>
                         {b.name}
                         {b.id === activeBranchId && <Check size={13} />}
                       </button>
@@ -131,6 +131,14 @@ export function POSLayout({ children, activeBranchId, onBranchChange, onShowHeld
             <p className="text-[11px] text-stone-400 truncate">{user?.name}</p>
           </div>
         </div>
+
+        {/* Shift status badge (cashier) */}
+        {activeShift && shiftDuration && (
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 border border-green-200">
+            <Clock size={12} className="text-green-600" />
+            <span className="text-[11px] font-medium text-green-700">Shift {shiftDuration}</span>
+          </div>
+        )}
 
         {/* Clock */}
         <div className="flex-1 text-center hidden sm:block">
@@ -150,6 +158,12 @@ export function POSLayout({ children, activeBranchId, onBranchChange, onShowHeld
             <button onClick={onShowHeld}
               className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm text-stone-600 hover:bg-stone-100 transition-all">
               <PauseCircle size={15} /> Hold
+            </button>
+          )}
+          {onCloseShift && (
+            <button onClick={onCloseShift}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all">
+              <StopCircle size={15} /> Tutup Shift
             </button>
           )}
           <button onClick={() => navigate('/dashboard')}

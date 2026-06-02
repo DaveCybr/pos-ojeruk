@@ -49,7 +49,7 @@ export function PaymentModal({ open, onClose, onSuccess, branchId }: PaymentModa
           productId: i.productId,
           quantity:  i.quantity,
           price:     i.price,
-          discount:  0,
+          discount:  i.discount,
         })),
       }),
     onSuccess: ({ data }) => {

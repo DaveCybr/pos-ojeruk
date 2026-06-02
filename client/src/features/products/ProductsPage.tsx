@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Plus, Pencil, Trash2, Package, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, Package, Search, ChevronLeft, ChevronRight, Barcode } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { AppLayout } from '../../components/layout/AppLayout'
 import { PageHeader } from '../../components/layout/PageHeader'
@@ -51,6 +51,25 @@ export function ProductsPage() {
 
   const openCreate = () => { setSelected(null); setModalOpen(true) }
   const openEdit = (p: Product) => { setSelected(p); setModalOpen(true) }
+
+  const printBarcode = (product: Product) => {
+    const win = window.open('', '_blank', 'width=400,height=300')
+    if (!win) return
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Barcode</title>
+      <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:monospace;background:#fff}
+      .label{display:inline-flex;flex-direction:column;align-items:center;padding:12px 16px;border:1px dashed #ccc;margin:8px}
+      .name{font-size:11px;font-weight:600;margin-bottom:4px;text-align:center;max-width:160px}
+      .price{font-size:13px;font-weight:700;color:#ea580c;margin-top:4px}
+      @media print{@page{margin:4mm}}</style></head><body>
+      <div class="label"><p class="name">${product.name}</p>
+      <svg id="bc"></svg>
+      <p class="price">Rp ${Number(product.price).toLocaleString('id-ID')}</p>
+      </div><script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+      <script>JsBarcode('#bc','${product.barcode}',{format:'CODE128',width:2,height:50,displayValue:true,fontSize:11,margin:4});</script>
+      </body></html>`)
+    win.document.close()
+    setTimeout(() => { win.focus(); win.print() }, 500)
+  }
   const handleDelete = (p: Product) => {
     if (confirm(`Nonaktifkan produk "${p.name}"?`)) deleteMutation.mutate(p.id)
   }
@@ -103,6 +122,11 @@ export function ProductsPage() {
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center justify-end gap-1">
+            <button onClick={() => printBarcode(row.original)}
+              title="Cetak Barcode"
+              className="p-2 rounded-lg text-stone-400 hover:text-sky-600 hover:bg-sky-50 transition-all">
+              <Barcode size={15} />
+            </button>
             <button onClick={() => openEdit(row.original)}
               className="p-2 rounded-lg text-stone-400 hover:text-orange-500 hover:bg-orange-50 transition-all">
               <Pencil size={15} />
