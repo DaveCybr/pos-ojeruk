@@ -9,29 +9,31 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Pull latest code
+        run: |
+          cd ~/pos-ojeruk
+          git pull origin main
 
       - name: Build server
-        working-directory: server
         run: |
+          cd ~/pos-ojeruk/server
           npm ci
           npm run build
 
       - name: Build client
-        working-directory: client
         run: |
+          cd ~/pos-ojeruk/client
           npm install --legacy-peer-deps
           npm run build
 
       - name: Run DB migration
-        working-directory: server
         run: |
+          cd ~/pos-ojeruk/server
           npx prisma generate
           npx prisma migrate deploy
 
       - name: Restart PM2
         run: |
-          pm2 restart pos-ojeruk 2>/dev/null || pm2 start server/dist/server.js --name pos-ojeruk
+          pm2 restart pos-ojeruk
           pm2 save
           pm2 status
