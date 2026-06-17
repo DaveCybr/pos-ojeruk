@@ -6,107 +6,32 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: |
-            server/package-lock.json
-            client/package-lock.json
-
-      # ── Build Server ──────────────────────────────────────────
-      - name: Install server dependencies
-        run: npm ci
+      - name: Build server
         working-directory: server
-
-      - name: Build server (TypeScript → JS)
-        run: npm run build
-        working-directory: server
-
-      # ── Build Client ──────────────────────────────────────────
-      - name: Install client dependencies
-        run: npm install --legacy-peer-deps
-        working-directory: client
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
-
-      - name: Build client (Vite → static)
-        run: npm run build
-        working-directory: client
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
-
-      # ── Package artifacts ─────────────────────────────────────
-      - name: Package build artifacts
         run: |
-          tar -czf server-dist.tar.gz \
-            server/dist \
-            server/prisma \
-            server/package.json \
-            server/package-lock.json
-          tar -czf client-dist.tar.gz client/dist
+          npm ci
+          npm run build
 
-      # ── Upload to VPS ─────────────────────────────────────────
-      - name: Upload server build
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: 22
-          source: server-dist.tar.gz
-          target: /tmp/
+      - name: Build client
+        working-directory: client
+        run: |
+          npm install --legacy-peer-deps
+          npm run build
 
-      - name: Upload client build
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: 22
-          source: client-dist.tar.gz
-          target: /tmp/
+      - name: Run DB migration
+        working-directory: server
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
 
-      # ── Deploy on VPS ─────────────────────────────────────────
-      - name: Deploy & restart
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: 22
-          script: |
-            set -e
-
-            # Extract server build
-            mkdir -p ~/pos-ojeruk
-            tar -xzf /tmp/server-dist.tar.gz -C ~/pos-ojeruk --strip-components=1 server
-            rm /tmp/server-dist.tar.gz
-
-            # Extract client build
-            tar -xzf /tmp/client-dist.tar.gz -C ~/pos-ojeruk --strip-components=1 client
-            rm /tmp/client-dist.tar.gz
-
-            # Install production dependencies
-            cd ~/pos-ojeruk/server
-            npm ci --omit=dev
-
-            # Run DB migration
-            npx prisma generate
-            npx prisma migrate deploy
-
-            # Restart or start PM2
-            pm2 restart pos-ojeruk 2>/dev/null || pm2 start dist/server.js --name pos-ojeruk
-            pm2 save
-
-            echo "Deploy selesai!"
-            pm2 status
+      - name: Restart PM2
+        run: |
+          pm2 restart pos-ojeruk 2>/dev/null || pm2 start server/dist/server.js --name pos-ojeruk
+          pm2 save
+          pm2 status
