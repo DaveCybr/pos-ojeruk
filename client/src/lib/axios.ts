@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAuthStore } from '../stores/auth.store'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1',
@@ -27,7 +28,7 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${data.data.access_token}`
         return api(original)
       } catch {
-        localStorage.removeItem('access_token')
+        useAuthStore.getState().clearAuth()
         window.location.href = '/login'
       }
     }

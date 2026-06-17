@@ -23,7 +23,7 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 500,
   message: { success: false, message: 'Terlalu banyak request, coba lagi nanti' },
 })
 
