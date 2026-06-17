@@ -4,36 +4,100 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Pull latest code
-        run: |
-          cd ~/pos-ojeruk
-          git pull origin main
+      - uses: actions/checkout@v3
 
-      - name: Build server
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      # ── Build Server ──────────────────────────────────────────
+      - name: Build Server
         run: |
-          cd ~/pos-ojeruk/server
+          cd server
           npm ci
           npm run build
 
-      - name: Build client
+      # ── Build Client ──────────────────────────────────────────
+      - name: Build Client
         run: |
-          cd ~/pos-ojeruk/client
+          cd client
+          echo "VITE_API_URL=https://ojeruk.satelliteorbit.cloud/api/v1" > .env
+          echo "VITE_SOCKET_URL=https://ojeruk.satelliteorbit.cloud" >> .env
           npm install --legacy-peer-deps
           npm run build
 
-      - name: Run DB migration
-        run: |
-          cd ~/pos-ojeruk/server
-          npx prisma generate
-          npx prisma migrate deploy
+      # ── Upload Server ke VPS ──────────────────────────────────
+      - name: Upload Server Build
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 10m
+          source: "server/dist,server/package.json,server/package-lock.json,server/prisma"
+          target: "/tmp/deploy-server"
+          strip_components: 1
 
-      - name: Restart PM2
-        run: |
-          pm2 restart pos-ojeruk
-          pm2 save
-          pm2 status
+      # ── Upload Client ke VPS ──────────────────────────────────
+      - name: Upload Client Build
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 10m
+          source: "client/dist/*"
+          target: "/tmp/deploy-client"
+          strip_components: 2
+
+      # ── Deploy di VPS ─────────────────────────────────────────
+      - name: Deploy & Restart
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 15m
+          script: |
+            set -e
+
+            # ── Server: pindah ke ~/api/pos-ojeruk/ ──
+            API_PATH=~/api/pos-ojeruk
+            mkdir -p $API_PATH
+
+            rm -rf $API_PATH/dist $API_PATH/prisma
+            mv /tmp/deploy-server/dist     $API_PATH/dist
+            mv /tmp/deploy-server/prisma   $API_PATH/prisma
+            cp /tmp/deploy-server/package.json      $API_PATH/package.json
+            cp /tmp/deploy-server/package-lock.json $API_PATH/package-lock.json
+            rm -rf /tmp/deploy-server
+
+            cd $API_PATH
+            npm ci --omit=dev
+            npx prisma generate
+            npx prisma migrate deploy
+
+            pm2 restart pos-ojeruk 2>/dev/null || pm2 start dist/server.js --name pos-ojeruk
+            pm2 save
+
+            # ── Client: pindah ke public_html ──
+            WEB_PATH=~/domains/ojeruk.satelliteorbit.cloud/public_html
+            find $WEB_PATH -mindepth 1 -not -name '.htaccess' -delete
+            mv /tmp/deploy-client/* $WEB_PATH/
+            rm -rf /tmp/deploy-client
+
+            echo ">>> DEPLOY SUCCESSFUL!"
+            pm2 status
