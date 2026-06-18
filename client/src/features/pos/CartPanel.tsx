@@ -71,9 +71,9 @@ export function CartPanel({ onCheckout, onHold }: CartPanelProps) {
   const claimedMilk  = promoItems.filter(p => p.type === 'milk').length
   const claimedEsTeh = promoItems.filter(p => p.type === 'esteh').length
 
-  const availableFreeTea   = earnedFreeTea   - claimedTea
-  const availableFreeMilk  = earnedFreeMilk  - claimedMilk
-  const availableFreeEsTeh = earnedFreeEsTeh - claimedEsTeh
+  const availableFreeTea   = Math.max(0, earnedFreeTea   - claimedTea)
+  const availableFreeMilk  = Math.max(0, earnedFreeMilk  - claimedMilk)
+  const availableFreeEsTeh = Math.max(0, earnedFreeEsTeh - claimedEsTeh)
   const hasPromo = availableFreeTea > 0 || availableFreeMilk > 0 || availableFreeEsTeh > 0
 
   const totalPromoSavings = promoItems.reduce((s, p) => s + p.price, 0)
@@ -92,7 +92,8 @@ export function CartPanel({ onCheckout, onHold }: CartPanelProps) {
       const excess = claimedEsTeh - earnedFreeEsTeh
       promoItems.filter(p => p.type === 'esteh').slice(-excess).forEach(p => removePromoItem(p.id))
     }
-  }, [earnedFreeTea, earnedFreeMilk, earnedFreeEsTeh, claimedTea, claimedMilk, claimedEsTeh])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [earnedFreeTea, earnedFreeMilk, earnedFreeEsTeh, claimedTea, claimedMilk, claimedEsTeh, removePromoItem])
 
   // ── Promo claim handlers ─────────────────────────────────────────────────────
 

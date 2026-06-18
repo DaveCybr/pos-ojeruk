@@ -33,10 +33,10 @@ export function HeldTransactionsDrawer({ open, onClose, branchId }: Props) {
       if (!confirm('Keranjang sekarang akan diganti. Lanjutkan?')) return
     }
     clearCart()
-    const cartData = h.cartData as CartItem[]
+    const cartData = Array.isArray(h.cartData) ? (h.cartData as CartItem[]) : []
     cartData.forEach(item => {
       for (let i = 0; i < item.quantity; i++) {
-        addItem({ productId: item.productId, name: item.name, price: item.price, discount: item.discount, imageUrl: item.imageUrl })
+        addItem({ productId: item.productId, name: item.name, price: item.price, discount: item.discount, imageUrl: item.imageUrl, categoryName: item.categoryName })
       }
     })
     deleteMutation.mutate(h.id)
@@ -75,8 +75,8 @@ export function HeldTransactionsDrawer({ open, onClose, branchId }: Props) {
               <p className="text-sm text-stone-400">Tidak ada transaksi ditahan</p>
             </div>
           ) : held.map(h => {
-            const cartData = h.cartData as CartItem[]
-            const itemCount = cartData?.reduce((s: number, i: CartItem) => s + i.quantity, 0) ?? 0
+            const cartData = Array.isArray(h.cartData) ? (h.cartData as CartItem[]) : []
+            const itemCount = cartData.reduce((s: number, i: CartItem) => s + i.quantity, 0)
             return (
               <div key={h.id} className="bg-stone-50 rounded-xl border border-stone-200 p-3">
                 <div className="flex items-start justify-between gap-2 mb-2">

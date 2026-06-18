@@ -133,6 +133,12 @@ export function PaymentModal({ open, onClose, onSuccess, branchId }: PaymentModa
         {/* Summary */}
         <div className="text-[13px] text-stone-500 space-y-0.5">
           <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(sub)}</span></div>
+          {promoItems.length > 0 && (
+            <div className="flex justify-between text-green-600">
+              <span>Promo gratis ({promoItems.length} item)</span>
+              <span>-{formatCurrency(promoItems.reduce((s, p) => s + p.price, 0))}</span>
+            </div>
+          )}
           {discount > 0 && <div className="flex justify-between text-green-600"><span>Diskon</span><span>-{formatCurrency(discount)}</span></div>}
         </div>
 
