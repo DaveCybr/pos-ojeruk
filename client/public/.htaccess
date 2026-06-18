@@ -1,4 +1,20 @@
-Options -MultiViews
 RewriteEngine On
+RewriteBase /
+
+# Proxy /api to port 3000
+RewriteRule ^api($|/.*)$ http://localhost:3000/api$1 [P,L]
+
+# Proxy /uploads to port 3000
+RewriteRule ^uploads($|/.*)$ http://localhost:3000/uploads$1 [P,L]
+
+# Proxy /socket.io to port 3000 (with WebSocket support)
+RewriteCond %{HTTP:Upgrade} websocket [NC]
+RewriteCond %{HTTP:Connection} upgrade [NC]
+RewriteRule ^socket\.io($|/.*)$ ws://localhost:3000/socket.io$1 [P,L]
+RewriteRule ^socket\.io($|/.*)$ http://localhost:3000/socket.io$1 [P,L]
+
+# SPA routing - serve index.html for all non-file requests
+RewriteRule ^index\.html$ - [L]
 RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^ index.html [QSA,L]
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
