@@ -24,7 +24,7 @@ const METHODS: { value: PaymentMethod; label: string; icon: string }[] = [
 ]
 
 export function PaymentModal({ open, onClose, onSuccess, branchId }: PaymentModalProps) {
-  const { items, discount, customer, total, subtotal, clearCart } = useCartStore()
+  const { items, promoItems, discount, customer, total, subtotal, clearCart } = useCartStore()
   const [method, setMethod] = useState<PaymentMethod>('CASH')
   const [paid, setPaid] = useState(0)
 
@@ -45,12 +45,10 @@ export function PaymentModal({ open, onClose, onSuccess, branchId }: PaymentModa
         paymentMethod: method,
         paidAmount:    method === 'CASH' ? paid : tot,
         discount,
-        items: items.map(i => ({
-          productId: i.productId,
-          quantity:  i.quantity,
-          price:     i.price,
-          discount:  i.discount,
-        })),
+        items: [
+          ...items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price, discount: i.discount })),
+          ...promoItems.map(p => ({ productId: p.productId, quantity: 1, price: p.price, discount: p.price })),
+        ],
       }),
     onSuccess: ({ data }) => {
       clearCart()

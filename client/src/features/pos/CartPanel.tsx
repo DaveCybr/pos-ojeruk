@@ -1,29 +1,128 @@
-import { useState } from 'react'
-import { Trash2, Minus, Plus, X, ShoppingCart, Tag } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Trash2, Minus, Plus, X, ShoppingCart, Tag, Gift } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useCartStore } from '../../stores/cart.store'
 import { formatCurrency } from '../../lib/utils'
 import { CurrencyInput } from '../../components/ui/CurrencyInput'
 import { CustomerSection } from './CustomerSection'
+import { productApi } from '../products/api'
 
 interface CartPanelProps {
   onCheckout: () => void
   onHold: () => void
 }
 
+// "teh" = name contains "teh" or starts with "the " (The Jumbo Original, Lemon Teh)
+const isTeaItem = (name: string) => {
+  const n = name.toLowerCase()
+  return n.includes('teh') || /^the\b/.test(n)
+}
+
+// "susu/milk" = category name contains "milk" or "susu"
+const isMilkItem = (categoryName: string | undefined) => {
+  const c = (categoryName ?? '').toLowerCase()
+  return c.includes('milk') || c.includes('susu')
+}
+
 export function CartPanel({ onCheckout, onHold }: CartPanelProps) {
   const {
-    items, discount, addItem, removeItem, updateQty,
+    items, promoItems, discount,
+    addItem, removeItem, updateQty,
+    addPromoItem, removePromoItem,
     setItemDiscount, setDiscount, clearCart, subtotal, total,
   } = useCartStore()
 
   const [discountMode,  setDiscountMode]  = useState<'rp' | 'pct'>('rp')
   const [discountInput, setDiscountInput] = useState(0)
-  // track which product has its discount input open
   const [discountItemId, setDiscountItemId] = useState<string | null>(null)
+
+  // Fetch products for finding "es teh" in mix promo (cache hit - same key as ProductGrid)
+  const { data: productData } = useQuery({
+    queryKey: ['products', { limit: 200, isActive: 'true' }],
+    queryFn: () => productApi.list({ limit: 200, isActive: 'true' }).then(r => r.data.data),
+    staleTime: 5 * 60 * 1000,
+  })
 
   const sub     = subtotal()
   const tot     = total()
   const isEmpty = items.length === 0
+
+  // ── Promo logic ─────────────────────────────────────────────────────────────
+
+  const teaQty = useMemo(
+    () => items.filter(i => isTeaItem(i.name)).reduce((s, i) => s + i.quantity, 0),
+    [items],
+  )
+  const milkQty = useMemo(
+    () => items.filter(i => isMilkItem(i.categoryName)).reduce((s, i) => s + i.quantity, 0),
+    [items],
+  )
+  const otherQty = useMemo(
+    () => items.filter(i => !isTeaItem(i.name) && !isMilkItem(i.categoryName)).reduce((s, i) => s + i.quantity, 0),
+    [items],
+  )
+
+  const earnedFreeTea   = Math.floor(teaQty / 3)
+  const earnedFreeMilk  = Math.floor(milkQty / 3)
+  const mixQty          = (teaQty % 3) + (milkQty % 3) + otherQty
+  const earnedFreeEsTeh = Math.floor(mixQty / 3)
+
+  const claimedTea   = promoItems.filter(p => p.type === 'tea').length
+  const claimedMilk  = promoItems.filter(p => p.type === 'milk').length
+  const claimedEsTeh = promoItems.filter(p => p.type === 'esteh').length
+
+  const availableFreeTea   = earnedFreeTea   - claimedTea
+  const availableFreeMilk  = earnedFreeMilk  - claimedMilk
+  const availableFreeEsTeh = earnedFreeEsTeh - claimedEsTeh
+  const hasPromo = availableFreeTea > 0 || availableFreeMilk > 0 || availableFreeEsTeh > 0
+
+  const totalPromoSavings = promoItems.reduce((s, p) => s + p.price, 0)
+
+  // Auto-remove excess promos when cart items are removed
+  useEffect(() => {
+    if (claimedTea > earnedFreeTea) {
+      const excess = claimedTea - earnedFreeTea
+      promoItems.filter(p => p.type === 'tea').slice(-excess).forEach(p => removePromoItem(p.id))
+    }
+    if (claimedMilk > earnedFreeMilk) {
+      const excess = claimedMilk - earnedFreeMilk
+      promoItems.filter(p => p.type === 'milk').slice(-excess).forEach(p => removePromoItem(p.id))
+    }
+    if (claimedEsTeh > earnedFreeEsTeh) {
+      const excess = claimedEsTeh - earnedFreeEsTeh
+      promoItems.filter(p => p.type === 'esteh').slice(-excess).forEach(p => removePromoItem(p.id))
+    }
+  }, [earnedFreeTea, earnedFreeMilk, earnedFreeEsTeh, claimedTea, claimedMilk, claimedEsTeh])
+
+  // ── Promo claim handlers ─────────────────────────────────────────────────────
+
+  const handleClaimFreeTea = () => {
+    const cheapest = [...items]
+      .filter(i => isTeaItem(i.name))
+      .sort((a, b) => a.price - b.price)[0]
+    if (!cheapest) return
+    addPromoItem({ id: `promo-tea-${Date.now()}`, productId: cheapest.productId, name: cheapest.name, price: cheapest.price, type: 'tea' })
+  }
+
+  const handleClaimFreeMilk = () => {
+    const cheapest = [...items]
+      .filter(i => isMilkItem(i.categoryName))
+      .sort((a, b) => a.price - b.price)[0]
+    if (!cheapest) return
+    addPromoItem({ id: `promo-milk-${Date.now()}`, productId: cheapest.productId, name: cheapest.name, price: cheapest.price, type: 'milk' })
+  }
+
+  const handleClaimFreeEsTeh = () => {
+    // Find cheapest tea product from all products (The Jumbo Original)
+    const tehProducts = (productData ?? [])
+      .filter(p => isTeaItem(p.name))
+      .sort((a, b) => Number(a.price) - Number(b.price))
+    const esTeh = tehProducts[0]
+    if (!esTeh) return
+    addPromoItem({ id: `promo-esteh-${Date.now()}`, productId: esTeh.id, name: esTeh.name, price: Number(esTeh.price), type: 'esteh' })
+  }
+
+  // ── Discount handlers ────────────────────────────────────────────────────────
 
   const handleDiscountChange = (num: number) => {
     setDiscountInput(num)
@@ -93,7 +192,7 @@ export function CartPanel({ onCheckout, onHold }: CartPanelProps) {
                       <Minus size={13} />
                     </button>
                     <span className="w-9 text-center text-sm font-semibold text-stone-800">{item.quantity}</span>
-                    <button onClick={() => addItem({ productId: item.productId, name: item.name, price: item.price, discount: item.discount, imageUrl: item.imageUrl })}
+                    <button onClick={() => addItem({ productId: item.productId, name: item.name, price: item.price, discount: item.discount, imageUrl: item.imageUrl, categoryName: item.categoryName })}
                       className="w-8 h-8 flex items-center justify-center rounded-lg bg-stone-100 hover:bg-orange-100 active:scale-95 transition-all text-stone-600 hover:text-orange-600">
                       <Plus size={13} />
                     </button>
@@ -102,7 +201,6 @@ export function CartPanel({ onCheckout, onHold }: CartPanelProps) {
                   <div className="flex-shrink-0 text-right min-w-[60px]">
                     <p className="text-sm font-semibold text-stone-800">{formatCurrency(item.subtotal)}</p>
                     <div className="flex items-center gap-1 justify-end mt-0.5">
-                      {/* Item discount toggle */}
                       <button
                         onClick={() => toggleItemDiscount(item.productId)}
                         className={`p-0.5 rounded transition-colors ${
@@ -147,13 +245,69 @@ export function CartPanel({ onCheckout, onHold }: CartPanelProps) {
                 )}
               </div>
             ))}
+
+            {/* Promo items */}
+            {promoItems.map(promo => (
+              <div key={promo.id} className="px-4 py-3 bg-green-50">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <Gift size={12} className="text-green-600 flex-shrink-0" />
+                      <p className="text-sm font-medium text-green-800 truncate">{promo.name}</p>
+                    </div>
+                    <span className="text-[10px] bg-green-200 text-green-700 px-1.5 py-0.5 rounded-full font-bold">
+                      GRATIS
+                    </span>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs line-through text-stone-400">{formatCurrency(promo.price)}</p>
+                    <p className="text-sm font-bold text-green-600">Rp 0</p>
+                  </div>
+                  <button onClick={() => removePromoItem(promo.id)}
+                    className="text-stone-300 hover:text-red-400 transition-colors flex-shrink-0">
+                    <X size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Bottom: Customer + Discount + Summary + Actions */}
+      {/* Bottom: Promo banner + Customer + Discount + Summary + Actions */}
       {!isEmpty && (
         <div className="flex-shrink-0 border-t border-stone-100">
+
+          {/* Promo claim banner */}
+          {hasPromo && (
+            <div className="mx-3 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Gift size={13} className="text-amber-600" />
+                <p className="text-xs font-bold text-amber-700">PROMO! Beli 3 Gratis 1</p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {availableFreeTea > 0 && (
+                  <button onClick={handleClaimFreeTea}
+                    className="w-full h-8 bg-amber-400 hover:bg-amber-500 active:scale-[0.98] text-white rounded-lg text-xs font-semibold transition-all">
+                    Klaim 1 Teh GRATIS {availableFreeTea > 1 ? `(${availableFreeTea}x)` : ''}
+                  </button>
+                )}
+                {availableFreeMilk > 0 && (
+                  <button onClick={handleClaimFreeMilk}
+                    className="w-full h-8 bg-amber-400 hover:bg-amber-500 active:scale-[0.98] text-white rounded-lg text-xs font-semibold transition-all">
+                    Klaim 1 Susu GRATIS {availableFreeMilk > 1 ? `(${availableFreeMilk}x)` : ''}
+                  </button>
+                )}
+                {availableFreeEsTeh > 0 && (
+                  <button onClick={handleClaimFreeEsTeh}
+                    className="w-full h-8 bg-amber-400 hover:bg-amber-500 active:scale-[0.98] text-white rounded-lg text-xs font-semibold transition-all">
+                    Klaim Es Teh GRATIS {availableFreeEsTeh > 1 ? `(${availableFreeEsTeh}x)` : ''}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Customer */}
           <div className="px-4 pt-3 pb-2">
             <CustomerSection />
@@ -200,6 +354,12 @@ export function CartPanel({ onCheckout, onHold }: CartPanelProps) {
               <div className="flex justify-between text-sm text-green-600">
                 <span>Diskon item</span>
                 <span>-{formatCurrency(items.reduce((s, i) => s + i.discount, 0))}</span>
+              </div>
+            )}
+            {totalPromoSavings > 0 && (
+              <div className="flex justify-between text-sm text-green-600">
+                <span>Promo gratis ({promoItems.length} item)</span>
+                <span>-{formatCurrency(totalPromoSavings)}</span>
               </div>
             )}
             {discount > 0 && (

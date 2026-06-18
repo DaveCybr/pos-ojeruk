@@ -86,7 +86,7 @@ export function ProductGrid({ branchId, onBarcodeSearch }: ProductGridProps) {
   const handleAddToCart = (p: Product) => {
     const stock = stockMap.get(p.id)
     if (stock && stock.quantity === 0) return
-    addItem({ productId: p.id, name: p.name, price: Number(p.price), discount: 0, imageUrl: p.imageUrl })
+    addItem({ productId: p.id, name: p.name, price: Number(p.price), discount: 0, imageUrl: p.imageUrl, categoryName: p.category?.name ?? '' })
   }
 
   return (
