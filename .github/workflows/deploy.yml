@@ -10,108 +10,72 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: |
-            server/package-lock.json
-            client/package-lock.json
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       # ── Build Server ──────────────────────────────────────────
       - name: Build Server
+        working-directory: server
         run: |
-          cd server
           npm ci
           npm run build
 
       # ── Build Client ──────────────────────────────────────────
       - name: Build Client
+        working-directory: client
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
         run: |
-          cd client
-          echo "VITE_API_URL=https://ojeruk.satelliteorbit.cloud/api/v1" > .env
-          echo "VITE_SOCKET_URL=https://ojeruk.satelliteorbit.cloud" >> .env
+          echo "VITE_API_URL=$VITE_API_URL" > .env
+          echo "VITE_SOCKET_URL=$VITE_SOCKET_URL" >> .env
           npm install --legacy-peer-deps
           npm run build
 
-      # ── Upload Server ke VPS ──────────────────────────────────
-      - name: Upload Server Build
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 10m
-          source: "server/dist,server/package.json,server/package-lock.json,server/prisma"
-          target: "/tmp/deploy-server"
-          strip_components: 1
-
-      # ── Upload Client ke VPS ──────────────────────────────────
-      - name: Upload Client Build
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 10m
-          source: "client/dist/*"
-          target: "/tmp/deploy-client"
-          strip_components: 2
-
-      # ── Deploy di VPS ─────────────────────────────────────────
-      - name: Deploy & Restart
-        uses: appleboy/ssh-action@v1.0.3
+      # ── Deploy Server ─────────────────────────────────────────
+      - name: Deploy Server
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 15m
-          envs: DATABASE_URL,JWT_SECRET,JWT_REFRESH_SECRET
-          script: |
-            set -e
-            API_PATH=/home/satelliteorbit/api/pos-ojeruk
-            mkdir -p $API_PATH
+        run: |
+          API_PATH=/home/satelliteorbit/api/pos-ojeruk
+          mkdir -p $API_PATH
 
-            # Tulis .env dari GitHub Secrets
-            cat > $API_PATH/.env << ENVEOF
-            DATABASE_URL=$DATABASE_URL
-            JWT_SECRET=$JWT_SECRET
-            JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET
-            PORT=3000
-            CLIENT_URL=https://ojeruk.satelliteorbit.cloud
-            NODE_ENV=production
-            ENVEOF
+          # Tulis .env dari secrets
+          cat > $API_PATH/.env << ENVEOF
+          DATABASE_URL=$DATABASE_URL
+          JWT_SECRET=$JWT_SECRET
+          JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET
+          PORT=3000
+          CLIENT_URL=${{ secrets.VITE_SOCKET_URL }}
+          NODE_ENV=production
+          ENVEOF
 
-            # Deploy server
-            rm -rf $API_PATH/dist $API_PATH/prisma
-            mv /tmp/deploy-server/dist              $API_PATH/dist
-            mv /tmp/deploy-server/prisma            $API_PATH/prisma
-            cp /tmp/deploy-server/package.json      $API_PATH/package.json
-            cp /tmp/deploy-server/package-lock.json $API_PATH/package-lock.json
-            rm -rf /tmp/deploy-server
+          # Copy hasil build
+          rm -rf $API_PATH/dist $API_PATH/prisma
+          cp -r server/dist    $API_PATH/dist
+          cp -r server/prisma  $API_PATH/prisma
+          cp server/package.json      $API_PATH/package.json
+          cp server/package-lock.json $API_PATH/package-lock.json
 
-            cd $API_PATH
-            npm ci --omit=dev
-            npx prisma generate
-            npx prisma migrate deploy
+          cd $API_PATH
+          npm ci --omit=dev
+          npx prisma generate
+          npx prisma migrate deploy
 
-            pm2 restart pos-ojeruk 2>/dev/null || pm2 start dist/server.js --name pos-ojeruk
-            pm2 save
+          pm2 restart pos-ojeruk 2>/dev/null || pm2 start dist/server.js --name pos-ojeruk
+          pm2 save
 
-            # Deploy client ke public_html
-            WEB_PATH=/home/satelliteorbit/domains/ojeruk.satelliteorbit.cloud/public_html
-            find $WEB_PATH -mindepth 1 -not -name '.htaccess' -delete
-            mv /tmp/deploy-client/* $WEB_PATH/
-            rm -rf /tmp/deploy-client
+      # ── Deploy Client ─────────────────────────────────────────
+      - name: Deploy Client
+        run: |
+          WEB_PATH=/home/satelliteorbit/domains/ojeruk.satelliteorbit.cloud/public_html
+          find $WEB_PATH -mindepth 1 -not -name '.htaccess' -delete
+          cp -r client/dist/* $WEB_PATH/
 
-            echo ">>> DEPLOY SUCCESSFUL!"
-            pm2 status
+          echo ">>> DEPLOY SUCCESSFUL!"
+          pm2 status
