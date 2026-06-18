@@ -66,21 +66,35 @@ jobs:
       # ── Deploy di VPS ─────────────────────────────────────────
       - name: Deploy & Restart
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           timeout: 15m
+          envs: DATABASE_URL,JWT_SECRET,JWT_REFRESH_SECRET
           script: |
             set -e
-
-            # ── Server: pindah ke ~/api/pos-ojeruk/ ──
-            API_PATH=~/api/pos-ojeruk
+            API_PATH=/home/satelliteorbit/api/pos-ojeruk
             mkdir -p $API_PATH
 
+            # Tulis .env dari GitHub Secrets
+            cat > $API_PATH/.env << ENVEOF
+            DATABASE_URL=$DATABASE_URL
+            JWT_SECRET=$JWT_SECRET
+            JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET
+            PORT=3000
+            CLIENT_URL=https://ojeruk.satelliteorbit.cloud
+            NODE_ENV=production
+            ENVEOF
+
+            # Deploy server
             rm -rf $API_PATH/dist $API_PATH/prisma
-            mv /tmp/deploy-server/dist     $API_PATH/dist
-            mv /tmp/deploy-server/prisma   $API_PATH/prisma
+            mv /tmp/deploy-server/dist              $API_PATH/dist
+            mv /tmp/deploy-server/prisma            $API_PATH/prisma
             cp /tmp/deploy-server/package.json      $API_PATH/package.json
             cp /tmp/deploy-server/package-lock.json $API_PATH/package-lock.json
             rm -rf /tmp/deploy-server
@@ -93,8 +107,8 @@ jobs:
             pm2 restart pos-ojeruk 2>/dev/null || pm2 start dist/server.js --name pos-ojeruk
             pm2 save
 
-            # ── Client: pindah ke public_html ──
-            WEB_PATH=~/domains/ojeruk.satelliteorbit.cloud/public_html
+            # Deploy client ke public_html
+            WEB_PATH=/home/satelliteorbit/domains/ojeruk.satelliteorbit.cloud/public_html
             find $WEB_PATH -mindepth 1 -not -name '.htaccess' -delete
             mv /tmp/deploy-client/* $WEB_PATH/
             rm -rf /tmp/deploy-client
