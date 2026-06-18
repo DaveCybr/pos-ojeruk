@@ -1,6 +1,10 @@
 RewriteEngine On
 RewriteBase /
 
+# Force HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
 # Proxy /api to port 3000
 RewriteRule ^api($|/.*)$ http://localhost:3000/api$1 [P,L]
 
@@ -13,7 +17,7 @@ RewriteCond %{HTTP:Connection} upgrade [NC]
 RewriteRule ^socket\.io($|/.*)$ ws://localhost:3000/socket.io$1 [P,L]
 RewriteRule ^socket\.io($|/.*)$ http://localhost:3000/socket.io$1 [P,L]
 
-# SPA routing - serve index.html for all non-file requests
+# SPA routing
 RewriteRule ^index\.html$ - [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
